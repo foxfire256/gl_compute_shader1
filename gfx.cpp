@@ -81,6 +81,26 @@ void gfx::init()
 	snprintf(buffer, 8, "%.1f", ram_mb / 1024.0f);
 	std::cout << "System RAM " << ram_mb << "MB (" << buffer << " GB)\n";
 	
+	// OpenGL init
+	// init glew first
+	glewExperimental = GL_TRUE; // Needed in core profile
+	if(glewInit() != GLEW_OK)
+	{
+		printf("Failed to initialize GLEW\n");
+		exit(-1);
+	}
+	
+	// HACK: to get around initial glew error with core profiles
+	GLenum gl_err = glGetError();
+	while(gl_err != GL_NO_ERROR)
+	{
+		//printf("glError in file %s @ line %d: %s (after glew init)\n",
+		//	(char *)__FILE__, __LINE__, gluErrorString(gl_err));
+		gl_err = glGetError();
+	}
+	
+	print_opengl_error();
+	
 	print_info();
 	
 	fflush(stdout);
@@ -108,6 +128,8 @@ void gfx::render()
 		exit(1);
 	}
 	
+	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+	
 	SDL_GL_SwapWindow(window);
 }
 
@@ -115,6 +137,8 @@ void gfx::resize(int w, int h)
 {
 	win_w = w;
 	win_h = h;
+	
+	glViewport(0, 0, win_w, win_h);
 }
 
 int gfx::main_loop()
