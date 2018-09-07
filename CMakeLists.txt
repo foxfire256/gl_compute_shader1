@@ -36,14 +36,14 @@ if(MSVC)
 		debug "C:\\vclibs\\vclibs\\lib\\glew32d.lib")
 	
 	set(BOOST_LIBS ${BOOST_LIBS}
-		optimized "C:\\vclibs\\vclibs\\lib\\libboost_program_options-vc141-mt-x64-1_66.lib"
-		debug "C:\\vclibs\\vclibs\\lib\\libboost_program_options-vc141-mt-gd-x64-1_66.lib")
+		optimized "C:\\vclibs\\vclibs\\lib\\libboost_program_options-vc141-mt-x64-1_68.lib"
+		debug "C:\\vclibs\\vclibs\\lib\\libboost_program_options-vc141-mt-gd-x64-1_68.lib")
 	set(BOOST_LIBS ${BOOST_LIBS}
-		optimized "C:\\vclibs\\vclibs\\lib\\libboost_system-vc141-mt-x64-1_66.lib"
-		debug "C:\\vclibs\\vclibs\\lib\\libboost_system-vc141-mt-gd-x64-1_66.lib")
+		optimized "C:\\vclibs\\vclibs\\lib\\libboost_system-vc141-mt-x64-1_68.lib"
+		debug "C:\\vclibs\\vclibs\\lib\\libboost_system-vc141-mt-gd-x64-1_68.lib")
 	set(BOOST_LIBS ${BOOST_LIBS}
-		optimized "C:\\vclibs\\vclibs\\lib\\libboost_filesystem-vc141-mt-x64-1_66.lib"
-		debug "C:\\vclibs\\vclibs\\lib\\libboost_filesystem-vc141-mt-gd-x64-1_66.lib")
+		optimized "C:\\vclibs\\vclibs\\lib\\libboost_filesystem-vc141-mt-x64-1_68.lib"
+		debug "C:\\vclibs\\vclibs\\lib\\libboost_filesystem-vc141-mt-gd-x64-1_68.lib")
 	
 	set(SDL_LIBS
 		${LIBS}
@@ -187,6 +187,10 @@ set(MAIN_SOURCE
 	main.cpp
 	gfx.hpp
 	gfx.cpp
+	../common-cpp/fox/counter.hpp
+	../common-cpp/fox/counter.cpp
+	../common-cpp/fox/gfx/eigen_opengl.hpp
+	../common-cpp/fox/gfx/eigen_opengl.cpp
 )
 
 add_executable(${PROJECT_NAME} ${MAIN_SOURCE})

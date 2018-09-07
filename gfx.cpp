@@ -4,6 +4,9 @@
 
 #include <GL/glu.h>
 
+#include "fox/counter.hpp"
+#include "fox/gfx/eigen_opengl.hpp"
+
 #ifdef _WIN32
 std::string data_root = "C:/dev/gl_compute_shader1";
 #else // Linux
@@ -12,6 +15,11 @@ std::string data_root = "/home/foxfire/dev/gl_compute_shader1";
 
 #define print_opengl_error() print_opengl_error2((char *)__FILE__, __LINE__)
 int print_opengl_error2(char *file, int line);
+
+gfx::gfx()
+{
+	this->generator = std::mt19937_64(std::random_device{}());
+}
 
 void gfx::init()
 {
@@ -102,12 +110,140 @@ void gfx::init()
 	print_opengl_error();
 	
 	print_info();
-	
+
+	GLint val;
+	glGetIntegerv(GL_MAX_VERTEX_UNIFORM_BLOCKS, &val);
+	printf("GL_MAX_VERTEX_UNIFORM_BLOCKS: %i\n", val);
+	glGetIntegerv(GL_MAX_FRAGMENT_UNIFORM_BLOCKS, &val);
+	printf("GL_MAX_FRAGMENT_UNIFORM_BLOCKS: %i\n", val);
+	glGetIntegerv(GL_MAX_UNIFORM_BLOCK_SIZE, &val);
+	printf("GL_MAX_UNIFORM_BLOCK_SIZE: %i\n", val);
+	printf("This means a max of %i objects\n", val / 4 / 16);
+
+	print_opengl_error();
+
+	// init basic OpenGL stuff
+	glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
+
+	// TODO: may want depth test off and blending off
+	glEnable(GL_DEPTH_TEST);
+	glDisable(GL_BLEND); // alpha channel
+	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+
+	glEnable(GL_POLYGON_SMOOTH);
+	glHint(GL_POLYGON_SMOOTH_HINT, GL_NICEST);
+
+	glPointSize(1.5f);
+
+	// OpenGL 3.2 core requires a VAO to be bound to use a VBO
+	// WARNING: GLES 2.0 does not support VAOs
+	glGenVertexArrays(1, &default_vao);
+	glBindVertexArray(default_vao);
+
+	// initialize some defaults
+	eye = Eigen::Vector3f(0.0f, 0.0f, 10.0f);
+	target = Eigen::Vector3f(0.0f, 0.0f, 0.0f);
+	up = Eigen::Vector3f(0.0f, 1.0f, 0.0f);
+
+	fox::gfx::look_at(eye, target, up, V);
+	fox::gfx::perspective(65.0f, (float)win_w / (float)win_h, 0.01f, 40.0f, P);
+
+	print_opengl_error();
+
+	obj_count = 64;
+	x[0].resize(obj_count);
+	x[1].resize(obj_count);
+	v[0].resize(obj_count);
+	v[1].resize(obj_count);
+	a[0].resize(obj_count);
+	a[1].resize(obj_count);
+	m.resize(obj_count);
+
+	float mass_range[2];
+	float distance_range[2];
+
+	// random init stuff
+	std::uniform_real_distribution<float> dist_m(mass_range[0],
+		mass_range[1]);
+	std::uniform_real_distribution<float> dist_d(distance_range[0],
+		distance_range[1]);
+
+	for(uint16_t i = 0; i < obj_count; i++)
+	{
+		m[i] = dist_m(generator);
+
+		x[0][i] = Eigen::Vector3f(dist_d(generator),
+			dist_d(generator),
+			dist_d(generator));
+
+		v[0][i] = Eigen::Vector3f(0.0, 0.0, 0.0);
+		a[0][i] = Eigen::Vector3f(0.0, 0.0, 0.0);
+	}
+
+	glGenBuffers(1, &x_vbo_0);
+	glBindBuffer(GL_ARRAY_BUFFER, x_vbo_0);
+	glBufferData(GL_ARRAY_BUFFER, sizeof(float) * obj_count * 3,
+		x[0].data(), GL_STATIC_DRAW);
+	glGenBuffers(1, &x_vbo_1);
+	glBindBuffer(GL_ARRAY_BUFFER, x_vbo_1);
+	glBufferData(GL_ARRAY_BUFFER, sizeof(float) * obj_count * 3,
+		x[1].data(), GL_STATIC_DRAW);
+	glGenBuffers(1, &v_vbo_0);
+	glBindBuffer(GL_ARRAY_BUFFER, v_vbo_0);
+	glBufferData(GL_ARRAY_BUFFER, sizeof(float) * obj_count * 3,
+		v[0].data(), GL_STATIC_DRAW);
+	glGenBuffers(1, &v_vbo_1);
+	glBindBuffer(GL_ARRAY_BUFFER, v_vbo_1);
+	glBufferData(GL_ARRAY_BUFFER, sizeof(float) * obj_count * 3,
+		v[1].data(), GL_STATIC_DRAW);
+	glGenBuffers(1, &a_vbo_0);
+	glBindBuffer(GL_ARRAY_BUFFER, a_vbo_0);
+	glBufferData(GL_ARRAY_BUFFER, sizeof(float) * obj_count * 3,
+		a[0].data(), GL_STATIC_DRAW);
+	glGenBuffers(1, &a_vbo_1);
+	glBindBuffer(GL_ARRAY_BUFFER, a_vbo_1);
+	glBufferData(GL_ARRAY_BUFFER, sizeof(float) * obj_count * 3,
+		a[1].data(), GL_STATIC_DRAW);
+
+	glGenBuffers(1, &m_vbo);
+	glBindBuffer(GL_ARRAY_BUFFER, m_vbo);
+	glBufferData(GL_ARRAY_BUFFER, sizeof(float) * obj_count,
+		m.data(), GL_STATIC_DRAW);
+
+	print_opengl_error();
+	glBindBuffer(GL_ARRAY_BUFFER, 0);
+
+	print_opengl_error();
 	fflush(stdout);
 }
 
 void gfx::deinit()
 {
+	// TODO: should we really use swap to force a deallocation and is this the
+	// right way to do it?
+
+	std::vector<Eigen::Vector3f> n0, n1;
+	x[0].clear();
+	x[1].clear();
+	x[0].swap(n0);
+	x[1].swap(n1);
+
+	std::vector<Eigen::Vector3f> n2, n3;
+	v[0].clear();
+	v[1].clear();
+	v[0].swap(n2);
+	v[1].swap(n3);
+
+	std::vector<Eigen::Vector3f> n4, n5;
+	a[0].clear();
+	a[1].clear();
+	a[0].swap(n4);
+	a[1].swap(n5);
+
+	std::vector<float> n7;
+	m.clear();
+	m.swap(n7);
+
 	SDL_GL_DeleteContext(context);
 	SDL_DestroyWindow(window);
 	
