@@ -2,6 +2,8 @@
 #extension GL_ARB_compute_shader : enable
 #extension GL_ARB_shader_storage_buffer_object : enable
 
+uniform float delta_t;
+
 layout(std140, binding=0) buffer x
 {
 	vec3 pos[];
@@ -16,11 +18,17 @@ layout(std140, binding=1) buffer v
 layout(local_size_x = 128, local_size_y = 1, local_size_z = 1) in;
 uint gid = gl_GlobalInvocationID.x;
 
-// get values
-vec3 x0 = pos[gid].xyz;
+void main()
+{
+	// get values
+	vec3 x0 = pos[gid].xyz;
+	vec3 v0 = vel[gid].xyz;
 
-// do something
+	// do something
+	vec3 x1 = v0 * delta_t + x0;
 
-// write values out
-// doesn't work for some reason
-//pos[gid].xyz = x0;
+	// write values out
+	// doesn't work for some reason
+	pos[gid].xyz = x1;
+}
+

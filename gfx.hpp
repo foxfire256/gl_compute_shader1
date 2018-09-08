@@ -31,6 +31,7 @@ private:
 	void load_shaders();
 
 	fox::counter *fps_counter;
+	fox::counter *update_counter;
 	SDL_Window *window;
 	SDL_GLContext context;
 	int done;

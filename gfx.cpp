@@ -171,7 +171,8 @@ void gfx::init()
 			dist_d(generator),
 			dist_d(generator));
 
-		v[0][i] = Eigen::Vector3f(0.0, 0.0, 0.0);
+		//v[0][i] = Eigen::Vector3f(0.0, 0.0, 0.0);
+		v[0][i] = x[0][i];
 		a[0][i] = Eigen::Vector3f(0.0, 0.0, 0.0);
 	}
 
@@ -221,6 +222,9 @@ void gfx::init()
 
 	print_opengl_error();
 	fflush(stdout);
+
+	update_counter = new fox::counter();
+	fps_counter = new fox::counter();
 }
 
 void gfx::deinit()
@@ -276,6 +280,9 @@ void gfx::deinit()
 	SDL_DestroyWindow(window);
 	
 	SDL_Quit();
+
+	delete update_counter;
+	delete fps_counter;
 }
 
 void gfx::render()
@@ -294,6 +301,29 @@ void gfx::render()
 	
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
+	float delta_t = update_counter->update();
+
+	if(comp_prog != 0)
+	{
+		glUseProgram(comp_prog);
+		GLuint u;
+		u = glGetUniformLocation(comp_prog, "delta_t");
+		glUniform1f(u, delta_t);
+
+		glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, x_vbo_0);
+		glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 1, v_vbo_0);
+
+		glDispatchCompute((GLuint)128, 1, 1);
+
+		glMemoryBarrier(GL_ALL_BARRIER_BITS);
+
+		if(print_opengl_error())
+		{
+			fflush(stdout);
+			exit(-1);
+		}
+	}
+
 	glUseProgram(point_shader_id);
 	GLint vertex_loc = glGetAttribLocation(point_shader_id, "vertex");
 	glBindBuffer(GL_ARRAY_BUFFER, x_vbo_0);
@@ -305,6 +335,12 @@ void gfx::render()
 	glBindBuffer(GL_ARRAY_BUFFER, 0);
 
 	SDL_GL_SwapWindow(window);
+
+	if(print_opengl_error())
+	{
+		fflush(stdout);
+		exit(-1);
+	}
 }
 
 void gfx::resize(int w, int h)
