@@ -61,11 +61,11 @@ void gfx::init()
 	SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 4);
 	SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 6);
 	
-	SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK,
-						SDL_GL_CONTEXT_PROFILE_CORE);
 	//SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK,
-	//	SDL_GL_CONTEXT_PROFILE_COMPATIBILITY);
-	
+	//					SDL_GL_CONTEXT_PROFILE_CORE);
+	SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK,
+		SDL_GL_CONTEXT_PROFILE_COMPATIBILITY);
+
 	context = SDL_GL_CreateContext(window);
 	
 	ret = SDL_GL_MakeCurrent(window, context);
@@ -121,13 +121,13 @@ void gfx::init()
 	glEnable(GL_BLEND); // alpha channel
 	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
-	// need compatability profile for these
-	//glEnable(GL_POINT_SMOOTH);
-	//glHint(GL_POINT_SMOOTH_HINT, GL_NICEST);
 	glEnable(GL_POLYGON_SMOOTH);
 	glHint(GL_POLYGON_SMOOTH_HINT, GL_NICEST);
+	// need compatability profile for these
+	glEnable(GL_POINT_SMOOTH);
+	glHint(GL_POINT_SMOOTH_HINT, GL_NICEST);
 
-	glPointSize(1.5f);
+	glPointSize(3.0f);
 
 	// OpenGL 3.2 core requires a VAO to be bound to use a VBO
 	// WARNING: GLES 2.0 does not support VAOs
@@ -145,7 +145,7 @@ void gfx::init()
 
 	print_opengl_error();
 
-	obj_count = 64;
+	obj_count = 128;
 	x[0].resize(obj_count);
 	x[1].resize(obj_count);
 	v[0].resize(obj_count);
@@ -153,6 +153,9 @@ void gfx::init()
 	a[0].resize(obj_count);
 	a[1].resize(obj_count);
 	m.resize(obj_count);
+
+	current = 0;
+	next = 1;
 
 	float mass_range[2];
 	float distance_range[2] = {-1.0f, 1.0f};
@@ -171,9 +174,9 @@ void gfx::init()
 			dist_d(generator),
 			dist_d(generator));
 
-		//v[0][i] = Eigen::Vector3f(0.0, 0.0, 0.0);
-		v[0][i] = x[0][i];
-		a[0][i] = Eigen::Vector3f(0.0, 0.0, 0.0);
+		x[1][i] = Eigen::Vector3f(0.0, 0.0, 0.0);
+		v[0][i] = Eigen::Vector3f(0.0, 0.0, 0.0);
+		v[1][i] = Eigen::Vector3f(0.0, 0.0, 0.0);
 	}
 
 	glGenBuffers(1, &x_vbo_0);
@@ -225,6 +228,9 @@ void gfx::init()
 
 	update_counter = new fox::counter();
 	fps_counter = new fox::counter();
+	perf_counter = new fox::counter();
+
+	perf_index = 0;
 }
 
 void gfx::deinit()
@@ -283,10 +289,13 @@ void gfx::deinit()
 
 	delete update_counter;
 	delete fps_counter;
+	delete perf_counter;
 }
 
 void gfx::render()
 {
+	render_times[perf_index] = perf_counter->update_double();
+	
 	int status = SDL_GL_MakeCurrent(window, context);
 	if(status)
 	{
@@ -298,8 +307,6 @@ void gfx::render()
 		SDL_Quit();
 		exit(1);
 	}
-	
-	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
 	float delta_t = update_counter->update();
 
@@ -309,9 +316,26 @@ void gfx::render()
 		GLuint u;
 		u = glGetUniformLocation(comp_prog, "delta_t");
 		glUniform1f(u, delta_t);
+		// TODO: set this once
+		u = glGetUniformLocation(comp_prog, "point_count");
+		glUniform1ui(u, obj_count);
 
-		glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, x_vbo_0);
-		glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 1, v_vbo_0);
+		if(current == 0)
+		{
+			glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, x_vbo_0);
+			glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 1, v_vbo_0);
+			glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 2, m_vbo);
+			glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 3, x_vbo_1);
+			glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 4, v_vbo_1);
+		}
+		else
+		{
+			glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, x_vbo_1);
+			glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 1, v_vbo_1);
+			glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 2, m_vbo);
+			glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 3, x_vbo_0);
+			glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 4, v_vbo_0);
+		}
 
 		glDispatchCompute((GLuint)128, 1, 1);
 
@@ -324,9 +348,39 @@ void gfx::render()
 		}
 	}
 
+	phys_times[perf_index] = perf_counter->update_double();
+
+	perf_index++;
+	if(perf_index >= perf_array_size)
+		perf_index = 0;
+	total_time += fps_counter->update_double();
+	if(total_time >= 1.0)
+	{
+		phys_time = 0.0;
+		render_time = 0.0;
+		for(uint8_t i = 0; i < perf_array_size; i++)
+		{
+			phys_time += phys_times[i];
+			render_time += render_times[i];
+		}
+		printf("Physics time:    %.9f\n", phys_time);
+		printf("Render time:     %.9f\n", render_time);
+		printf("----------------------------\n");
+		//fflush(stdout);
+		total_time = 0.0;
+	}
+
+	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 	glUseProgram(point_shader_id);
 	GLint vertex_loc = glGetAttribLocation(point_shader_id, "vertex");
-	glBindBuffer(GL_ARRAY_BUFFER, x_vbo_0);
+	if(current == 0)
+	{
+		glBindBuffer(GL_ARRAY_BUFFER, x_vbo_0);
+	}
+	else
+	{
+		glBindBuffer(GL_ARRAY_BUFFER, x_vbo_1);
+	}
 	glEnableVertexAttribArray(vertex_loc);
 	glVertexAttribPointer(vertex_loc, 3, GL_FLOAT, GL_FALSE, 0, 0);
 
@@ -340,6 +394,17 @@ void gfx::render()
 	{
 		fflush(stdout);
 		exit(-1);
+	}
+
+	if(current == 0)
+	{
+		current = 1;
+		next = 0;
+	}
+	else
+	{
+		current = 0;
+		next = 1;
 	}
 }
 

@@ -32,6 +32,7 @@ private:
 
 	fox::counter *fps_counter;
 	fox::counter *update_counter;
+	fox::counter *perf_counter;
 	SDL_Window *window;
 	SDL_GLContext context;
 	int done;
@@ -46,6 +47,7 @@ private:
 	 * @brief Velocity, two vectors for new and old
 	 */
 	std::vector<Eigen::Vector3f> v[2];
+	// TODO: delete a[]
 	/**
 	 * @brief Acceleration, two vectors for new and old
 	 */
@@ -72,6 +74,16 @@ private:
 
 	GLuint point_shader_id, shader_vert_id, shader_frag_id, comp_shader_id, comp_prog;
 	GLuint x_vbo_0, x_vbo_1, v_vbo_0, v_vbo_1, a_vbo_0, a_vbo_1, m_vbo;
+
+	uint32_t current, next;
+
+	const static uint8_t perf_array_size = 8;
+	double phys_times[perf_array_size];
+	double render_times[perf_array_size];
+	double phys_time;
+	double render_time;
+	uint8_t perf_index;
+	double total_time;
 };
 
 #endif
