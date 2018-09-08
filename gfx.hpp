@@ -66,7 +66,8 @@ private:
 	uint32_t default_vao;
 	Eigen::Vector3f eye, target, up;
 	Eigen::Affine3f V;
-	Eigen::Projective3f P;
+	Eigen::Affine3f M;
+	Eigen::Projective3f P, MVP;
 
 	GLuint point_shader_id, shader_vert_id, shader_frag_id, comp_shader_id, comp_prog;
 	GLuint x_vbo_0, x_vbo_1, v_vbo_0, v_vbo_1, a_vbo_0, a_vbo_1, m_vbo;

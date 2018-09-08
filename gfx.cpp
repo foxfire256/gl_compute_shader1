@@ -117,10 +117,13 @@ void gfx::init()
 	glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
 
 	// TODO: may want depth test off and blending off
-	glEnable(GL_DEPTH_TEST);
-	glDisable(GL_BLEND); // alpha channel
+	glDisable(GL_DEPTH_TEST);
+	glEnable(GL_BLEND); // alpha channel
 	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
+	// need compatability profile for these
+	//glEnable(GL_POINT_SMOOTH);
+	//glHint(GL_POINT_SMOOTH_HINT, GL_NICEST);
 	glEnable(GL_POLYGON_SMOOTH);
 	glHint(GL_POLYGON_SMOOTH_HINT, GL_NICEST);
 
@@ -138,6 +141,7 @@ void gfx::init()
 
 	fox::gfx::look_at(eye, target, up, V);
 	fox::gfx::perspective(65.0f, (float)win_w / (float)win_h, 0.01f, 40.0f, P);
+	M = Eigen::Matrix4f::Identity();
 
 	print_opengl_error();
 
@@ -151,7 +155,7 @@ void gfx::init()
 	m.resize(obj_count);
 
 	float mass_range[2];
-	float distance_range[2];
+	float distance_range[2] = {-1.0f, 1.0f};
 
 	// random init stuff
 	std::uniform_real_distribution<float> dist_m(mass_range[0],
@@ -204,9 +208,16 @@ void gfx::init()
 	print_opengl_error();
 	glBindBuffer(GL_ARRAY_BUFFER, 0);
 
-	
-
 	load_shaders();
+
+	print_opengl_error();
+
+	glUseProgram(point_shader_id);
+	// TODO: just use an MVP matrix
+	GLint u;
+	MVP = P * (V * M);
+	u = glGetUniformLocation(point_shader_id, "MVP");
+	glUniformMatrix4fv(u, 1, GL_FALSE, MVP.data());
 
 	print_opengl_error();
 	fflush(stdout);
@@ -282,7 +293,17 @@ void gfx::render()
 	}
 	
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-	
+
+	glUseProgram(point_shader_id);
+	GLint vertex_loc = glGetAttribLocation(point_shader_id, "vertex");
+	glBindBuffer(GL_ARRAY_BUFFER, x_vbo_0);
+	glEnableVertexAttribArray(vertex_loc);
+	glVertexAttribPointer(vertex_loc, 3, GL_FLOAT, GL_FALSE, 0, 0);
+
+	glDrawArrays(GL_POINTS, 0, obj_count);
+
+	glBindBuffer(GL_ARRAY_BUFFER, 0);
+
 	SDL_GL_SwapWindow(window);
 }
 
@@ -292,6 +313,15 @@ void gfx::resize(int w, int h)
 	win_h = h;
 	
 	glViewport(0, 0, win_w, win_h);
+	fox::gfx::perspective(65.0f, (float)win_w / (float)win_h, 0.01f, 40.0f, P);
+	MVP = P * (V * M);
+	if(point_shader_id != 0)
+	{
+		GLuint u;
+		glUseProgram(point_shader_id);
+		u = glGetUniformLocation(point_shader_id, "MVP");
+		glUniformMatrix4fv(u, 1, GL_FALSE, MVP.data());
+	}
 }
 
 void gfx::load_shaders()
