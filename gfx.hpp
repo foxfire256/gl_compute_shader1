@@ -27,14 +27,15 @@ public:
 	int main_loop();
 	
 private:
+	void print_info();
+	void load_shaders();
+
 	fox::counter *fps_counter;
 	SDL_Window *window;
 	SDL_GLContext context;
 	int done;
 	int win_w;
 	int win_h;
-	
-	void print_info();
 
 	/**
 	 * @brief Position (x1, x2, x3), two vectors for new and old
@@ -67,7 +68,7 @@ private:
 	Eigen::Affine3f V;
 	Eigen::Projective3f P;
 
-	GLuint gfx_shader_id, shader_vert_id, shader_frag_id, comp_shader_id;
+	GLuint point_shader_id, shader_vert_id, shader_frag_id, comp_shader_id, comp_prog;
 	GLuint x_vbo_0, x_vbo_1, v_vbo_0, v_vbo_1, a_vbo_0, a_vbo_1, m_vbo;
 };
 

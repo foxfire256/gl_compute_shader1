@@ -1,0 +1,26 @@
+#version 450 core
+#extension GL_ARB_compute_shader : enable
+#extension GL_ARB_shader_storage_buffer_object : enable
+
+layout(std140, binding=0) buffer x
+{
+	vec3 pos[];
+};
+
+layout(std140, binding=1) buffer v
+{
+	vec3 vel[];
+};
+
+// local_size_x needs to be the size of the work group
+layout(local_size_x = 128, local_size_y = 1, local_size_z = 1) in;
+uint gid = gl_GlobalInvocationID.x;
+
+// get values
+vec3 x0 = pos[gid].xyz;
+
+// do something
+
+// write values out
+// doesn't work for some reason
+//pos[gid].xyz = x0;
